@@ -4,6 +4,17 @@
 
 私は英語を話さない日本人の仲間のためにものを作ろうとしているので、後で納得のいく翻訳を提供するよう努力するので、我慢してほしい。
 
+## You've been warned
+This is work-in-progress. I expect that it will not work as expected yet so be careful. I will do some more code and other important stuff here.
+
+**Bucketlist**
+* add more oppcodes (see docs/Opcodes.md what is actually done)
+* add more examples
+* add some more documentation
+* Make assembly great again! (*The only MAGA that makes sense! Don't trust other MAGA's!!! Belive me, that's the best MAGA!!! You can ask other people - this is the best MAGA!!!*)
+* implement more oppcodes that it might be possible to use the compilier right on the board and the compiler can compile himself right on the board. (Guess what's possible then!!)
+
+
 ## Why Program Arduino Boards Directly in Assembly?
 *By El Dockerr*
 

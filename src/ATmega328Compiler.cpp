@@ -1,3 +1,6 @@
+// ATmega328Compiler.cpp
+// Author: Swen "El Dockerr" Kalski <swen.kalski@camaleao-studio.com>
+
 #include "ATmega328Compiler.hpp"
 #include "OpcodeMap.hpp"
 #include <fstream>
