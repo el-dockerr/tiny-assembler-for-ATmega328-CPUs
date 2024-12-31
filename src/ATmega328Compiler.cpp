@@ -146,8 +146,7 @@ int main(int argc, char* argv[]) {
 
     if (argc != 3) {
         std::cerr << "Usage: " << argv[0] << " <input.asm> <output.bin>\n";
-        std::cerr << "       " << argv[0] << " --test\n";
-        return 1;
+        return 0;
     }
 
     try {
