@@ -26,10 +26,16 @@ jobs:
 
     - name: Test binary
       run: |
-        cd build/bin
+        cd build
         if [ -f "ATmega328Compiler" ]; then
           echo "Binary successfully created"
+          ./ATmega328Compiler --version
         else
           echo "Binary not found"
           exit 1
         fi
+
+    - name: Run tests
+      run: |
+        cd build
+        ctest --output-on-failure
