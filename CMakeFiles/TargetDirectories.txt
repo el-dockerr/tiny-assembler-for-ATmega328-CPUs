@@ -1,0 +1,3 @@
+/home/skalski/local-dev/pocs/ATmega328_Asm/CMakeFiles/ATmega328Compiler.dir
+/home/skalski/local-dev/pocs/ATmega328_Asm/CMakeFiles/edit_cache.dir
+/home/skalski/local-dev/pocs/ATmega328_Asm/CMakeFiles/rebuild_cache.dir
