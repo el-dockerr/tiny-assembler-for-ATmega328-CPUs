@@ -3,3 +3,4 @@
 /CMakeScripts
 cmake_install.cmake
 ATmega328Compiler
+/.vscode
