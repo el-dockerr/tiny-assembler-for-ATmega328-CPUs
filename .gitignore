@@ -4,3 +4,10 @@
 cmake_install.cmake
 ATmega328Compiler
 /.vscode
+*.bin
+*.hex
+*.elf
+*.map
+*.o
+CTestTestfile.cmake
+Makefile
