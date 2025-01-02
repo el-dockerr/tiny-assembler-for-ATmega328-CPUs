@@ -8,6 +8,7 @@
 #include <sstream>
 #include <algorithm>
 #include <stdexcept>
+#include <iomanip>
 
 ATmega328Compiler::ATmega328Compiler(const std::string& inputFileName, const std::string& outputFileName)
     : inputFileName(inputFileName)
@@ -83,11 +84,60 @@ void ATmega328Compiler::secondPass() {
     }
 }
 
+std::string ATmega328Compiler::toHex(uint8_t byte) {
+    std::stringstream ss;
+    ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(byte);
+    return ss.str();
+}
+
+std::string ATmega328Compiler::generateHexRecord(uint16_t address, uint8_t recordType, const std::vector<uint8_t>& data) {
+    std::stringstream ss;
+    uint8_t checksum = 0;
+    
+    // Start code
+    ss << ':';
+    
+    // Byte count
+    ss << toHex(data.size());
+    checksum += data.size();
+    
+    // Address
+    ss << toHex((address >> 8) & 0xFF) << toHex(address & 0xFF);
+    checksum += (address >> 8) & 0xFF;
+    checksum += address & 0xFF;
+    
+    // Record type
+    ss << toHex(recordType);
+    checksum += recordType;
+    
+    // Data
+    for (uint8_t byte : data) {
+        ss << toHex(byte);
+        checksum += byte;
+    }
+    
+    // Checksum
+    checksum = (~checksum + 1) & 0xFF;
+    ss << toHex(checksum);
+    
+    return ss.str();
+}
+
 void ATmega328Compiler::writeOutput() {
-    std::ofstream file(outputFileName, std::ios::binary);
+    std::ofstream file(outputFileName);
     if (!file.is_open()) {
         throw std::runtime_error("Failed to open output file: " + outputFileName);
     }
-    file.write(reinterpret_cast<const char*>(machineCode.data()), machineCode.size());
+
+    // Write program data
+    for (size_t i = 0; i < machineCode.size(); i += 16) {
+        std::vector<uint8_t> record;
+        size_t remaining = std::min(size_t(16), machineCode.size() - i);
+        record.insert(record.end(), machineCode.begin() + i, machineCode.begin() + i + remaining);
+        file << generateHexRecord(i, 0x00, record) << "\n";
+    }
+
+    // Write EOF record
+    file << ":00000001FF\n";
     file.close();
 }

@@ -16,7 +16,10 @@ private:
     std::vector<uint8_t> machineCode;
     std::unordered_map<std::string, uint16_t> opcodeMap;
     std::unordered_map<std::string, size_t> labelMap;
-
+    std::string toHex(uint8_t byte);
+    std::string generateHexRecord(uint16_t address, uint8_t recordType, const std::vector<uint8_t>& data);
+    
+    void writeHexOutput();
     void readFile();
     void tokenize();
     void firstPass();
