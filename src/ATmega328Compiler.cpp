@@ -192,8 +192,24 @@ void ATmega328Compiler::secondPass() {
             }
             int8_t offset = (it->second - address - 1) & 0x7F;
             opcode = 0xF400 | (offset << 3);
+        } else if (mnemonic == "DEC") {
+            // Format: DEC Rd (1001 010d dddd 1010)
+            std::string reg;
+            iss >> reg;
+            int regNum = std::stoi(reg.substr(1));
+            opcode = 0x940A | (regNum << 4);
         }
-        else {
+        else if (mnemonic == "JMP") {
+            // Format: JMP k (1001 010k kkkk 110k kkkk kkkk kkkk kkkk)
+            std::string label;
+            iss >> label;
+            auto it = labelMap.find(label);
+            if (it == labelMap.end()) {
+                throw std::runtime_error("Unknown label: " + label);
+            }
+            uint32_t dest = it->second;
+            opcode = 0x940C | ((dest & 0x1FFFF) << 3);
+        } else {
             auto it = opcodeMap.find(mnemonic);
             if (it == opcodeMap.end()) {
                 throw std::runtime_error("Unknown instruction: " + mnemonic);
