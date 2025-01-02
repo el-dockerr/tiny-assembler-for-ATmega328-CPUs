@@ -51,42 +51,49 @@ void ATmega328Compiler::tokenize() {
 }
 
 void ATmega328Compiler::firstPass() {
-    uint16_t programCounter = 0;
-    std::string currentLabel;
+    uint16_t currentAddress = 0;
     
+    // First pass: collect all label addresses
     for (const auto& line : lines) {
         if (line.empty() || line[0] == ';') {
             continue;
         }
 
-        // Handle labels at current address
+        // Store label position
         if (line.back() == ':') {
-            currentLabel = line.substr(0, line.size() - 1);
-            if (labelMap.find(currentLabel) != labelMap.end()) {
-                throw std::runtime_error("Duplicate label: " + currentLabel);
+            std::string label = line.substr(0, line.size() - 1);
+            if (labelMap.find(label) != labelMap.end()) {
+                throw std::runtime_error("Duplicate label: " + label);
             }
-            labelMap[currentLabel] = programCounter;
+            std::cout << "Label " << label << " at address: " << currentAddress << std::endl;
+            labelMap[label] = currentAddress;
             continue;
         }
 
-        // Parse instruction to update PC
+        // Calculate instruction size
         std::istringstream iss(line);
         std::string mnemonic;
         iss >> mnemonic;
-        // Update PC based on instruction size
-        if (mnemonic == "JMP" || mnemonic == "CALL") {
-            programCounter += 4;  // 32-bit instructions
-        }
-        else if (!mnemonic.empty()) {
-            programCounter += 2;  // All other instructions are 16-bit
+
+        if (!mnemonic.empty()) {
+            if (mnemonic == "JMP" || mnemonic == "CALL") {
+                currentAddress += 4;  // 32-bit instructions
+            } else {
+                currentAddress += 2;  // 16-bit instructions
+            }
+            std::cout << "Instruction " << mnemonic << " at address: " << (currentAddress-2) << std::endl;
         }
     }
 
-    // Validate all labels have valid addresses
-    for (const auto& label : labelMap) {
-        if (label.second >= programCounter) {
-            throw std::runtime_error("Label address out of range: " + label.first);
-        }
+    std::cout << "\nLabel addresses in use:" << std::endl;
+    for (const auto& [label, addr] : labelMap) {
+        std::cout << label << ": 0x" << std::hex << addr << std::endl;
+    }
+    std::cout << std::dec << std::endl;
+
+    // Validate addresses
+    if (currentAddress > 0x8000) {
+        throw std::runtime_error("Program too large");
     }
 }
 
@@ -148,7 +155,6 @@ void ATmega328Compiler::secondPass() {
             if (offset < -2048 || offset > 2047) {
                 throw std::runtime_error("RJMP offset out of range");
             }
-            std::cout << "RJMP Offset for Label " << label <<": " << offset << std::endl;
             // Encode offset in instruction
             opcode = 0xC000 | (offset & 0x0FFF);
         }
