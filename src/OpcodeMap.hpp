@@ -21,6 +21,7 @@ namespace Opcodes {
         {"BRGE", 0xF404},
         {"BRLT", 0xF400},
         {"DEC", 0x940A},
-        {"CLR", 0x2400}
+        {"CLR", 0x2400},
+        {"RCALL", 0xD000},
     };
 }

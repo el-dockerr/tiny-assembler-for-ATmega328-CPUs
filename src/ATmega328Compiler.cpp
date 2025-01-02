@@ -66,22 +66,55 @@ void ATmega328Compiler::firstPass() {
 }
 
 void ATmega328Compiler::secondPass() {
+    uint16_t address = 0;
     for (const auto& line : lines) {
         if (line.empty() || line[0] == ';' || line.back() == ':') {
             continue;
         }
+
         std::istringstream iss(line);
         std::string mnemonic;
         iss >> mnemonic;
-        
-        auto it = opcodeMap.find(mnemonic);
-        if (it == opcodeMap.end()) {
-            throw std::runtime_error("Unknown instruction: " + mnemonic);
+
+        uint16_t opcode = 0;
+        if (mnemonic == "LDI") {
+            // Format: LDI Rd,K (1110 KKKK dddd KKKK)
+            std::string reg, value;
+            iss >> reg >> value;
+            int regNum = std::stoi(reg.substr(1));  // Remove 'R' prefix
+            int immValue = std::stoi(value, nullptr, 0);  // Auto-detect base
+            opcode = 0xE000 | ((regNum - 16) & 0xF) << 4 | ((immValue & 0xF0) << 4) | (immValue & 0x0F);
         }
-        
-        uint16_t opcode = it->second;
+        else if (mnemonic == "OUT") {
+            // Format: OUT A,Rr (1011 1AAr rrrr AAAA)
+            std::string port, reg;
+            iss >> port >> reg;
+            int portAddr = std::stoi(port, nullptr, 0);
+            int regNum = std::stoi(reg.substr(1));
+            opcode = 0xB800 | ((portAddr & 0x30) << 5) | (regNum & 0x1F) | (portAddr & 0x0F);
+        }
+        else if (mnemonic == "RCALL") {
+            // Format: RCALL k (1101 kkkk kkkk kkkk)
+            std::string label;
+            iss >> label;
+            auto it = labelMap.find(label);
+            if (it == labelMap.end()) {
+                throw std::runtime_error("Unknown label: " + label);
+            }
+            int16_t offset = (it->second - address - 1) & 0x0FFF;
+            opcode = 0xD000 | offset;
+        }
+        else {
+            auto it = opcodeMap.find(mnemonic);
+            if (it == opcodeMap.end()) {
+                throw std::runtime_error("Unknown instruction: " + mnemonic);
+            }
+            opcode = it->second;
+        }
+
         machineCode.push_back(opcode & 0xFF);
         machineCode.push_back((opcode >> 8) & 0xFF);
+        address += 2;
     }
 }
 
