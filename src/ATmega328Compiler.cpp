@@ -51,16 +51,26 @@ void ATmega328Compiler::tokenize() {
 }
 
 void ATmega328Compiler::firstPass() {
-    size_t address = 0;
+    uint16_t address = 0;
     for (const auto& line : lines) {
         if (line.empty() || line[0] == ';') {
             continue;
         }
+        
+        // Store label addresses
         if (line.back() == ':') {
             std::string label = line.substr(0, line.size() - 1);
             labelMap[label] = address;
-        } else {
-            address += 2;
+            continue;
+        }
+        
+        // Count instruction size
+        std::istringstream iss(line);
+        std::string mnemonic;
+        iss >> mnemonic;
+        
+        if (opcodeMap.find(mnemonic) != opcodeMap.end()) {
+            address += 2;  // All instructions are 2 bytes
         }
     }
 }
@@ -93,18 +103,7 @@ void ATmega328Compiler::secondPass() {
             int regNum = std::stoi(reg.substr(1));
             opcode = 0xB800 | ((portAddr & 0x30) << 5) | (regNum & 0x1F) | (portAddr & 0x0F);
         }
-        else if (mnemonic == "RCALL") {
-            // Format: RCALL k (1101 kkkk kkkk kkkk)
-            std::string label;
-            iss >> label;
-            auto it = labelMap.find(label);
-            if (it == labelMap.end()) {
-                throw std::runtime_error("Unknown label: " + label);
-            }
-            int16_t offset = (it->second - address - 1) & 0x0FFF;
-            opcode = 0xD000 | offset;
-        }
-        else if (mnemonic == "CALL") {
+        else if (mnemonic == "RCALL" || mnemonic == "CALL") {
             // Format: RCALL k (1101 kkkk kkkk kkkk)
             std::string label;
             iss >> label;
@@ -138,7 +137,7 @@ void ATmega328Compiler::secondPass() {
             int portAddr = std::stoi(port, nullptr, 0);
             opcode = 0xB000 | ((portAddr & 0x30) << 5) | (rdNum << 4) | (portAddr & 0x0F);
         }
-        else if (mnemonic == "JMP") {
+        else if (mnemonic == "JMP" || mnemonic == "RJMP") {
             // Format: JMP k (1001 010k kkkk 110k)
             std::string label;
             iss >> label;
@@ -198,16 +197,6 @@ void ATmega328Compiler::secondPass() {
             iss >> reg;
             int regNum = std::stoi(reg.substr(1));
             opcode = 0x940A | (regNum << 4);
-        } else if (mnemonic == "JMP") {
-            // Format: JMP k (1001 010k kkkk 110k kkkk kkkk kkkk kkkk)
-            std::string label;
-            iss >> label;
-            auto it = labelMap.find(label);
-            if (it == labelMap.end()) {
-                throw std::runtime_error("Unknown label: " + label);
-            }
-            uint32_t dest = it->second;
-            opcode = 0x940C | ((dest & 0x1FFFF) << 3);
         } else {
             auto it = opcodeMap.find(mnemonic);
             if (it == opcodeMap.end()) {
