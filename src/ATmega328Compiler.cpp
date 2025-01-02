@@ -51,26 +51,41 @@ void ATmega328Compiler::tokenize() {
 }
 
 void ATmega328Compiler::firstPass() {
-    uint16_t address = 0;
+    uint16_t programCounter = 0;
+    
     for (const auto& line : lines) {
         if (line.empty() || line[0] == ';') {
             continue;
         }
         
-        // Store label addresses
+        // Store label addresses at current program counter
         if (line.back() == ':') {
             std::string label = line.substr(0, line.size() - 1);
-            labelMap[label] = address;
+            if (labelMap.find(label) != labelMap.end()) {
+                throw std::runtime_error("Duplicate label: " + label);
+            }
+            labelMap[label] = programCounter;
             continue;
         }
         
-        // Count instruction size
+        // Parse instruction and update program counter
         std::istringstream iss(line);
         std::string mnemonic;
         iss >> mnemonic;
         
-        if (opcodeMap.find(mnemonic) != opcodeMap.end()) {
-            address += 2;  // All instructions are 2 bytes
+        if (mnemonic.empty()) {
+            continue;
+        }
+        
+        // Handle special cases for 32-bit instructions
+        if (mnemonic == "JMP" || mnemonic == "CALL") {
+            programCounter += 4;  // 32-bit instructions
+        }
+        else if (opcodeMap.find(mnemonic) != opcodeMap.end()) {
+            programCounter += 2;  // Standard 16-bit instructions
+        }
+        else {
+            throw std::runtime_error("Unknown instruction: " + mnemonic);
         }
     }
 }
