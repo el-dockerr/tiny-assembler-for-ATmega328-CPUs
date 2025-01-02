@@ -73,7 +73,7 @@ void ATmega328Compiler::firstPass() {
         std::istringstream iss(line);
         std::string mnemonic;
         iss >> mnemonic;
-
+        programCounter += 2;
         // Update PC based on instruction size
         if (mnemonic == "JMP" || mnemonic == "CALL") {
             programCounter += 4;  // 32-bit instructions
