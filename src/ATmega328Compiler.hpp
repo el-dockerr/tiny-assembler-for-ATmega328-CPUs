@@ -6,10 +6,11 @@
 
 class ATmega328Compiler {
 public:
-    ATmega328Compiler(const std::string& inputFileName, const std::string& outputFileName);
+    ATmega328Compiler(const std::string& cType, const std::string& inputFileName, const std::string& outputFileName);
     void compile();
 
 private:
+    std::string compileType;
     std::string inputFileName;
     std::string outputFileName;
     std::vector<std::string> lines;

@@ -20,6 +20,7 @@ namespace Opcodes {
         {"BRNE", 0xF401},
         {"BRGE", 0xF404},
         {"BRLT", 0xF400},
-        {"DEC", 0x940A} 
+        {"DEC", 0x940A},
+        {"CLR", 0x2400}
     };
 }

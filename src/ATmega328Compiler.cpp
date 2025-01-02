@@ -10,8 +10,9 @@
 #include <stdexcept>
 #include <iomanip>
 
-ATmega328Compiler::ATmega328Compiler(const std::string& inputFileName, const std::string& outputFileName)
-    : inputFileName(inputFileName)
+ATmega328Compiler::ATmega328Compiler(const std::string& cType,  const std::string& inputFileName, const std::string& outputFileName)
+    : compileType(cType)
+    ,inputFileName(inputFileName)
     , outputFileName(outputFileName)
     , opcodeMap(Opcodes::MAP) {
 }
@@ -124,20 +125,29 @@ std::string ATmega328Compiler::generateHexRecord(uint16_t address, uint8_t recor
 }
 
 void ATmega328Compiler::writeOutput() {
-    std::ofstream file(outputFileName);
-    if (!file.is_open()) {
-        throw std::runtime_error("Failed to open output file: " + outputFileName);
-    }
+    if(compileType == "hex") {
+        std::ofstream file(outputFileName);
+        if (!file.is_open()) {
+            throw std::runtime_error("Failed to open output file: " + outputFileName);
+        }
+        for (size_t i = 0; i < machineCode.size(); i += 16) {
+            std::vector<uint8_t> record;
+            size_t remaining = std::min(size_t(16), machineCode.size() - i);
+            record.insert(record.end(), machineCode.begin() + i, machineCode.begin() + i + remaining);
+            file << generateHexRecord(i, 0x00, record) << "\n";
+        }
 
-    // Write program data
-    for (size_t i = 0; i < machineCode.size(); i += 16) {
-        std::vector<uint8_t> record;
-        size_t remaining = std::min(size_t(16), machineCode.size() - i);
-        record.insert(record.end(), machineCode.begin() + i, machineCode.begin() + i + remaining);
-        file << generateHexRecord(i, 0x00, record) << "\n";
+        // Write EOF record
+        file << ":00000001FF\n";
+        file.close();
+    } else if (compileType == "bin") {
+        std::ofstream file(outputFileName, std::ios::binary);
+        if (!file.is_open()) {
+            throw std::runtime_error("Failed to open output file: " + outputFileName);
+        }
+        file.write(reinterpret_cast<const char*>(machineCode.data()), machineCode.size());
+        file.close();
+    } else {
+        throw std::runtime_error("Unknown output format: " + compileType);
     }
-
-    // Write EOF record
-    file << ":00000001FF\n";
-    file.close();
 }

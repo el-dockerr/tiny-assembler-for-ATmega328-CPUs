@@ -63,7 +63,7 @@ NOP
 
 Compilation Command:
 ```
-./compiler input.asm output.bin
+./compiler bin input.asm output.bin
 ```
 
 ## Examples
@@ -110,7 +110,7 @@ DELAY_LOOP:
 Compile the Assembly Code: Use the compiler you've written to convert blink.asm into a binary file.
 
 ```
-./compiler blink.asm blink.bin
+./compiler bin blink.asm blink.bin
 ```
 
 Upload to Arduino:
@@ -160,14 +160,9 @@ Compile the Program:
 g++ -o atmega328_compiler atmega328_compiler.cpp
 ```
 
-Run the Tests: Use the --test flag to run the unit tests:
-```
-./atmega328_compiler --test
-```
-
 Regular Compilation: To compile an assembly file to machine code, use:
 
 ```
-./atmega328_compiler <input.asm> <output.bin>
+./atmega328_compiler <hex/bin> <input.asm> <output.bin>
 ```
 
