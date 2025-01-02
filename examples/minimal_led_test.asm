@@ -11,4 +11,4 @@ START:
     OUT 0x25, R16       ; PORTB - LED ON
     CLR R17             ; Clear R17
     OUT 0x25, R17       ; PORTB - LED OFF
-    JMP START           ; Jump to start
+    RJMP START          ; Jump to start (relative)
