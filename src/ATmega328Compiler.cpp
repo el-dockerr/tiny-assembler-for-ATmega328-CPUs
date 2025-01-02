@@ -143,7 +143,7 @@ void ATmega328Compiler::secondPass() {
             iss >> label;
             auto it = labelMap.find(label);
             if (it == labelMap.end()) {
-                throw std::runtime_error("Unknown label: " + label);
+                throw std::runtime_error("Label not found: " + label);
             }
             opcode = 0x940C | ((it->second & 0x1FFFF) << 3);
         }
