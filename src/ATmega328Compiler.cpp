@@ -114,6 +114,84 @@ void ATmega328Compiler::secondPass() {
             }
             int16_t offset = (it->second - address - 1) & 0x0FFF;
             opcode = 0xD000 | offset;
+        } else if (mnemonic == "ADD") {
+            // Format: ADD Rd,Rr (0000 11rd dddd rrrr)
+            std::string rd, rr;
+            iss >> rd >> rr;
+            int rdNum = std::stoi(rd.substr(1));
+            int rrNum = std::stoi(rr.substr(1));
+            opcode = 0x0C00 | (rdNum << 4) | (rrNum & 0x0F);
+        }
+        else if (mnemonic == "SUB") {
+            // Format: SUB Rd,Rr (0001 10rd dddd rrrr)
+            std::string rd, rr;
+            iss >> rd >> rr;
+            int rdNum = std::stoi(rd.substr(1));
+            int rrNum = std::stoi(rr.substr(1));
+            opcode = 0x1800 | (rdNum << 4) | (rrNum & 0x0F);
+        }
+        else if (mnemonic == "IN") {
+            // Format: IN Rd,A (1011 0AAd dddd AAAA)
+            std::string rd, port;
+            iss >> rd >> port;
+            int rdNum = std::stoi(rd.substr(1));
+            int portAddr = std::stoi(port, nullptr, 0);
+            opcode = 0xB000 | ((portAddr & 0x30) << 5) | (rdNum << 4) | (portAddr & 0x0F);
+        }
+        else if (mnemonic == "JMP") {
+            // Format: JMP k (1001 010k kkkk 110k)
+            std::string label;
+            iss >> label;
+            auto it = labelMap.find(label);
+            if (it == labelMap.end()) {
+                throw std::runtime_error("Unknown label: " + label);
+            }
+            opcode = 0x940C | ((it->second & 0x1FFFF) << 3);
+        }
+        else if (mnemonic == "RET") {
+            // Format: RET (1001 0101 0000 1000)
+            opcode = 0x9508;
+        }
+        else if (mnemonic == "CP") {
+            // Format: CP Rd,Rr (0001 01rd dddd rrrr)
+            std::string rd, rr;
+            iss >> rd >> rr;
+            int rdNum = std::stoi(rd.substr(1));
+            int rrNum = std::stoi(rr.substr(1));
+            opcode = 0x1400 | (rdNum << 4) | (rrNum & 0x0F);
+        }
+        else if (mnemonic == "BRNE") {
+            // Format: BRNE k (1111 01kk kkkk k001)
+            std::string label;
+            iss >> label;
+            auto it = labelMap.find(label);
+            if (it == labelMap.end()) {
+                throw std::runtime_error("Unknown label: " + label);
+            }
+            int8_t offset = (it->second - address - 1) & 0x7F;
+            opcode = 0xF401 | (offset << 3);
+        }
+        else if (mnemonic == "BRGE") {
+            // Format: BRGE k (1111 01kk kkkk k100)
+            std::string label;
+            iss >> label;
+            auto it = labelMap.find(label);
+            if (it == labelMap.end()) {
+                throw std::runtime_error("Unknown label: " + label);
+            }
+            int8_t offset = (it->second - address - 1) & 0x7F;
+            opcode = 0xF404 | (offset << 3);
+        }
+        else if (mnemonic == "BRLT") {
+            // Format: BRLT k (1111 00kk kkkk k100)
+            std::string label;
+            iss >> label;
+            auto it = labelMap.find(label);
+            if (it == labelMap.end()) {
+                throw std::runtime_error("Unknown label: " + label);
+            }
+            int8_t offset = (it->second - address - 1) & 0x7F;
+            opcode = 0xF400 | (offset << 3);
         }
         else {
             auto it = opcodeMap.find(mnemonic);
