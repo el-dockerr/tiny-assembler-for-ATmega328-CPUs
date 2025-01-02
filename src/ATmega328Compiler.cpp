@@ -104,6 +104,17 @@ void ATmega328Compiler::secondPass() {
             int16_t offset = (it->second - address - 1) & 0x0FFF;
             opcode = 0xD000 | offset;
         }
+        else if (mnemonic == "CALL") {
+            // Format: RCALL k (1101 kkkk kkkk kkkk)
+            std::string label;
+            iss >> label;
+            auto it = labelMap.find(label);
+            if (it == labelMap.end()) {
+                throw std::runtime_error("Unknown label: " + label);
+            }
+            int16_t offset = (it->second - address - 1) & 0x0FFF;
+            opcode = 0xD000 | offset;
+        }
         else {
             auto it = opcodeMap.find(mnemonic);
             if (it == opcodeMap.end()) {
