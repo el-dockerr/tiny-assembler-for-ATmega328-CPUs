@@ -73,7 +73,6 @@ void ATmega328Compiler::firstPass() {
         std::istringstream iss(line);
         std::string mnemonic;
         iss >> mnemonic;
-        programCounter += 2;
         // Update PC based on instruction size
         if (mnemonic == "JMP" || mnemonic == "CALL") {
             programCounter += 4;  // 32-bit instructions
@@ -149,7 +148,7 @@ void ATmega328Compiler::secondPass() {
             if (offset < -2048 || offset > 2047) {
                 throw std::runtime_error("RJMP offset out of range");
             }
-            
+            std::cout << "RJMP Offset for Label " << label <<": " << offset << std::endl;
             // Encode offset in instruction
             opcode = 0xC000 | (offset & 0x0FFF);
         }
