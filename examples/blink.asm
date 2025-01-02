@@ -12,3 +12,22 @@
 
 MAIN:
     OUT 0x25, R16       ; PORTB - LED ON
+    RCALL DELAY         ; Wait 1 second
+    OUT 0x25, R17       ; PORTB - LED OFF
+    RCALL DELAY         ; Wait 1 second
+    RJMP MAIN          ; Repeat forever
+
+DELAY:
+    LDI R18, 82        ; Outer loop counter
+OUTER:
+    LDI R19, 255       ; Middle loop counter
+MIDDLE:
+    LDI R20, 255       ; Inner loop counter
+INNER:
+    DEC R20            ; 1 cycle
+    BRNE INNER         ; 2 cycles (branch) or 1 cycle (no branch)
+    DEC R19            ; 1 cycle
+    BRNE MIDDLE        ; 2 cycles (branch) or 1 cycle (no branch)
+    DEC R18            ; 1 cycle
+    BRNE OUTER         ; 2 cycles (branch) or 1 cycle (no branch)
+    RET                ; Return from subroutine
