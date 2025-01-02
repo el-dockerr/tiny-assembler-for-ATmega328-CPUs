@@ -52,40 +52,41 @@ void ATmega328Compiler::tokenize() {
 
 void ATmega328Compiler::firstPass() {
     uint16_t programCounter = 0;
+    std::string currentLabel;
     
     for (const auto& line : lines) {
         if (line.empty() || line[0] == ';') {
             continue;
         }
-        
-        // Store label addresses at current program counter
+
+        // Handle labels at current address
         if (line.back() == ':') {
-            std::string label = line.substr(0, line.size() - 1);
-            if (labelMap.find(label) != labelMap.end()) {
-                throw std::runtime_error("Duplicate label: " + label);
+            currentLabel = line.substr(0, line.size() - 1);
+            if (labelMap.find(currentLabel) != labelMap.end()) {
+                throw std::runtime_error("Duplicate label: " + currentLabel);
             }
-            labelMap[label] = programCounter;
+            labelMap[currentLabel] = programCounter;
             continue;
         }
-        
-        // Parse instruction and update program counter
+
+        // Parse instruction to update PC
         std::istringstream iss(line);
         std::string mnemonic;
         iss >> mnemonic;
-        
-        if (mnemonic.empty()) {
-            continue;
-        }
-        
-        // Handle special cases for 32-bit instructions
+
+        // Update PC based on instruction size
         if (mnemonic == "JMP" || mnemonic == "CALL") {
             programCounter += 4;  // 32-bit instructions
         }
-        else if (opcodeMap.find(mnemonic) != opcodeMap.end()) {
-            programCounter += 2;  // Standard 16-bit instructions
+        else if (!mnemonic.empty()) {
+            programCounter += 2;  // All other instructions are 16-bit
         }
-        else {
-            throw std::runtime_error("Unknown instruction: " + mnemonic);
+    }
+
+    // Validate all labels have valid addresses
+    for (const auto& label : labelMap) {
+        if (label.second >= programCounter) {
+            throw std::runtime_error("Label address out of range: " + label.first);
         }
     }
 }
