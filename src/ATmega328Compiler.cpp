@@ -198,8 +198,7 @@ void ATmega328Compiler::secondPass() {
             iss >> reg;
             int regNum = std::stoi(reg.substr(1));
             opcode = 0x940A | (regNum << 4);
-        }
-        else if (mnemonic == "JMP") {
+        } else if (mnemonic == "JMP") {
             // Format: JMP k (1001 010k kkkk 110k kkkk kkkk kkkk kkkk)
             std::string label;
             iss >> label;
@@ -264,20 +263,7 @@ std::string ATmega328Compiler::generateHexRecord(uint16_t address, uint8_t recor
 
 void ATmega328Compiler::writeOutput() {
     if(compileType == "hex") {
-        std::ofstream file(outputFileName);
-        if (!file.is_open()) {
-            throw std::runtime_error("Failed to open output file: " + outputFileName);
-        }
-        for (size_t i = 0; i < machineCode.size(); i += 16) {
-            std::vector<uint8_t> record;
-            size_t remaining = std::min(size_t(16), machineCode.size() - i);
-            record.insert(record.end(), machineCode.begin() + i, machineCode.begin() + i + remaining);
-            file << generateHexRecord(i, 0x00, record) << "\n";
-        }
-
-        // Write EOF record
-        file << ":00000001FF\n";
-        file.close();
+        writeHexOutput();
     } else if (compileType == "bin") {
         std::ofstream file(outputFileName, std::ios::binary);
         if (!file.is_open()) {
@@ -288,4 +274,51 @@ void ATmega328Compiler::writeOutput() {
     } else {
         throw std::runtime_error("Unknown output format: " + compileType);
     }
+}
+
+void ATmega328Compiler::writeHexOutput() {
+    std::ofstream file(outputFileName);
+    if (!file.is_open()) {
+        throw std::runtime_error("Failed to open output file: " + outputFileName);
+    }
+
+    // Write program data in Intel HEX format
+    for (size_t i = 0; i < machineCode.size(); i += 16) {
+        // Calculate remaining bytes in this record
+        size_t count = std::min(size_t(16), machineCode.size() - i);
+        
+        // Calculate record checksum
+        uint8_t checksum = count;  // Start with byte count
+        checksum += (i >> 8) & 0xFF;  // Add address high byte
+        checksum += i & 0xFF;         // Add address low byte
+        
+        // Write record start, length, address and type
+        file << ":" << std::hex << std::setfill('0') << std::setw(2) << count;
+        file << std::hex << std::setfill('0') << std::setw(4) << i;
+        file << "00";  // Record type 00 = data
+        
+        // Write data bytes
+        for (size_t j = 0; j < count; j++) {
+            uint8_t byte = machineCode[i + j];
+            file << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(byte);
+            checksum += byte;
+        }
+        
+        // Write checksum (two's complement of sum)
+        checksum = (~checksum + 1) & 0xFF;
+        file << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(checksum) << "\n";
+    }
+    
+    // Write end-of-file record
+    file << ":00000001FF\n";
+    file.close();
+}
+
+void ATmega328Compiler::writeBinOutput() {
+    std::ofstream file(outputFileName, std::ios::binary);
+    if (!file.is_open()) {
+        throw std::runtime_error("Failed to open output file: " + outputFileName);
+    }
+    file.write(reinterpret_cast<const char*>(machineCode.data()), machineCode.size());
+    file.close();
 }

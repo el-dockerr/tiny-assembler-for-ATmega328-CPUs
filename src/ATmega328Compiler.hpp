@@ -21,6 +21,7 @@ private:
     std::string generateHexRecord(uint16_t address, uint8_t recordType, const std::vector<uint8_t>& data);
     
     void writeHexOutput();
+    void writeBinOutput();
     void readFile();
     void tokenize();
     void firstPass();
