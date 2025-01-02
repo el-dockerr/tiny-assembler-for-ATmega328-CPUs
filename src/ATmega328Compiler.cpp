@@ -127,8 +127,15 @@ void ATmega328Compiler::secondPass() {
             if (it == labelMap.end()) {
                 throw std::runtime_error("Unknown label: " + label);
             }
-            int16_t offset = (it->second - address - 1) & 0x0FFF;
-            opcode = 0xC000 | offset;
+            
+            // Calculate relative offset (-2K to +2K words)
+            int16_t offset = it->second - address - 1;
+            if (offset < -2048 || offset > 2047) {
+                throw std::runtime_error("RJMP offset out of range");
+            }
+            
+            // Encode offset in instruction
+            opcode = 0xC000 | (offset & 0x0FFF);
         }
         else if (mnemonic == "RCALL") {
             // Format: RCALL k (1101 kkkk kkkk kkkk)
