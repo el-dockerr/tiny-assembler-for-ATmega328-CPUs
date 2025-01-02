@@ -102,8 +102,35 @@ void ATmega328Compiler::secondPass() {
             int portAddr = std::stoi(port, nullptr, 0);
             int regNum = std::stoi(reg.substr(1));
             opcode = 0xB800 | ((portAddr & 0x30) << 5) | (regNum & 0x1F) | (portAddr & 0x0F);
+        }else if (mnemonic == "JMP") {
+            // Format: JMP k (1001 010k kkkk 110k kkkk kkkk kkkk kkkk)
+            std::string label;
+            iss >> label;
+            auto it = labelMap.find(label);
+            if (it == labelMap.end()) {
+                throw std::runtime_error("Unknown label: " + label);
+            }
+            uint32_t dest = it->second;
+            // JMP is 32-bit instruction
+            opcode = 0x940C | ((dest & 0x1FFFF) << 3);
+            machineCode.push_back(opcode & 0xFF);
+            machineCode.push_back((opcode >> 8) & 0xFF);
+            machineCode.push_back((dest >> 16) & 0xFF);
+            machineCode.push_back((dest >> 24) & 0xFF);
+            continue;  // Skip normal opcode output
         }
-        else if (mnemonic == "RCALL" || mnemonic == "CALL") {
+        else if (mnemonic == "RJMP") {
+            // Format: RJMP k (1100 kkkk kkkk kkkk)
+            std::string label;
+            iss >> label;
+            auto it = labelMap.find(label);
+            if (it == labelMap.end()) {
+                throw std::runtime_error("Unknown label: " + label);
+            }
+            int16_t offset = (it->second - address - 1) & 0x0FFF;
+            opcode = 0xC000 | offset;
+        }
+        else if (mnemonic == "RCALL") {
             // Format: RCALL k (1101 kkkk kkkk kkkk)
             std::string label;
             iss >> label;
@@ -113,6 +140,23 @@ void ATmega328Compiler::secondPass() {
             }
             int16_t offset = (it->second - address - 1) & 0x0FFF;
             opcode = 0xD000 | offset;
+        }
+        else if (mnemonic == "CALL") {
+            // Format: CALL k (1001 010k kkkk 111k kkkk kkkk kkkk kkkk)
+            std::string label;
+            iss >> label;
+            auto it = labelMap.find(label);
+            if (it == labelMap.end()) {
+                throw std::runtime_error("Unknown label: " + label);
+            }
+            uint32_t dest = it->second;
+            // CALL is 32-bit instruction
+            opcode = 0x940E | ((dest & 0x1FFFF) << 3);
+            machineCode.push_back(opcode & 0xFF);
+            machineCode.push_back((opcode >> 8) & 0xFF);
+            machineCode.push_back((dest >> 16) & 0xFF);
+            machineCode.push_back((dest >> 24) & 0xFF);
+            continue;  // Skip normal opcode output
         } else if (mnemonic == "ADD") {
             // Format: ADD Rd,Rr (0000 11rd dddd rrrr)
             std::string rd, rr;
@@ -136,17 +180,7 @@ void ATmega328Compiler::secondPass() {
             int rdNum = std::stoi(rd.substr(1));
             int portAddr = std::stoi(port, nullptr, 0);
             opcode = 0xB000 | ((portAddr & 0x30) << 5) | (rdNum << 4) | (portAddr & 0x0F);
-        }
-        else if (mnemonic == "JMP" || mnemonic == "RJMP") {
-            // Format: JMP k (1001 010k kkkk 110k)
-            std::string label;
-            iss >> label;
-            auto it = labelMap.find(label);
-            if (it == labelMap.end()) {
-                throw std::runtime_error("Label not found: " + label);
-            }
-            opcode = 0x940C | ((it->second & 0x1FFFF) << 3);
-        }
+        } 
         else if (mnemonic == "RET") {
             // Format: RET (1001 0101 0000 1000)
             opcode = 0x9508;
