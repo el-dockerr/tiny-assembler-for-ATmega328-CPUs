@@ -23,5 +23,6 @@ namespace Opcodes {
         {"DEC", 0x940A},
         {"CLR", 0x2400},
         {"RCALL", 0xD000},
+        {"RJMP", 0x940C}
     };
 }

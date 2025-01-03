@@ -26,6 +26,8 @@ private:
     void tokenize();
     void firstPass();
     void secondPass();
+    std::string trimOperand(const std::string &operand);
+    int parseRegister(const std::string &reg);
     uint16_t parseOperand(const std::string &operand);
     void writeOutput();
     static std::string trim(const std::string& str);

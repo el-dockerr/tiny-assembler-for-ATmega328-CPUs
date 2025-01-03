@@ -12,3 +12,4 @@ ATmega328Compiler
 *.o
 CTestTestfile.cmake
 Makefile
+/build

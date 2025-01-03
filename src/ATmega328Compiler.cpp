@@ -51,8 +51,8 @@ void ATmega328Compiler::tokenize() {
 }
 
 void ATmega328Compiler::firstPass() {
-    uint16_t currentAddress = 0;
-    
+    uint16_t programCounter = 0;
+
     // First pass: collect all label addresses
     for (const auto& line : lines) {
         if (line.empty() || line[0] == ';') {
@@ -65,34 +65,37 @@ void ATmega328Compiler::firstPass() {
             if (labelMap.find(label) != labelMap.end()) {
                 throw std::runtime_error("Duplicate label: " + label);
             }
-            std::cout << "Label " << label << " at address: " << currentAddress << std::endl;
-            labelMap[label] = currentAddress;
+            labelMap[label] = programCounter;
+            std::cout << "Label " << label << " at address: " << programCounter << std::endl;
             continue;
         }
 
-        // Calculate instruction size
+        // Parse instruction and update program counter
         std::istringstream iss(line);
         std::string mnemonic;
         iss >> mnemonic;
 
-        if (!mnemonic.empty()) {
-            if (mnemonic == "JMP" || mnemonic == "CALL") {
-                currentAddress += 4;  // 32-bit instructions
-            } else {
-                currentAddress += 2;  // 16-bit instructions
-            }
-            std::cout << "Instruction " << mnemonic << " at address: " << (currentAddress-2) << std::endl;
+        if (mnemonic.empty()) {
+            continue;
         }
-    }
 
-    std::cout << "\nLabel addresses in use:" << std::endl;
-    for (const auto& [label, addr] : labelMap) {
-        std::cout << label << ": 0x" << std::hex << addr << std::endl;
+        // Determine instruction size
+        if (mnemonic == "JMP" || mnemonic == "CALL") {
+            programCounter += 4;  // 32-bit instructions
+        }
+        else if (opcodeMap.find(mnemonic) != opcodeMap.end()) {
+            programCounter += 2;  // 16-bit instructions
+        }
+        else {
+            throw std::runtime_error("Unknown instruction: " + mnemonic);
+        }
+
+        // Debug output
+        std::cout << "Instruction " << mnemonic << " at address: " << (programCounter - ((mnemonic == "JMP" || mnemonic == "CALL") ? 4 : 2)) << std::endl;
     }
-    std::cout << std::dec << std::endl;
 
     // Validate addresses
-    if (currentAddress > 0x8000) {
+    if (programCounter > 0x8000) {
         throw std::runtime_error("Program too large");
     }
 }
@@ -113,18 +116,73 @@ void ATmega328Compiler::secondPass() {
             // Format: LDI Rd,K (1110 KKKK dddd KKKK)
             std::string reg, value;
             iss >> reg >> value;
-            int regNum = std::stoi(reg.substr(1));  // Remove 'R' prefix
+
+            reg = trimOperand(reg);
+            value = trimOperand(value);
+
+            int regNum = parseRegister(reg);  // Use parseRegister
+            if (regNum < 16 || regNum > 31) {
+                throw std::runtime_error("LDI can only be used with R16 to R31. Found: " + reg);
+            }
             int immValue = std::stoi(value, nullptr, 0);  // Auto-detect base
-            opcode = 0xE000 | ((regNum - 16) & 0xF) << 4 | ((immValue & 0xF0) << 4) | (immValue & 0x0F);
-        }
-        else if (mnemonic == "OUT") {
+            if (immValue < 0 || immValue > 0xFF) {
+                throw std::runtime_error("Immediate value out of range for LDI: " + value);
+            }
+            opcode = 0xE000 | ((immValue & 0xF0)) | ((regNum - 16) << 4) | (immValue & 0x0F);
+            machineCode.push_back(opcode & 0xFF);
+            machineCode.push_back((opcode >> 8) & 0xFF);
+            address += 2;
+            std::cout << "LDI " << reg << ", " << value << " encoded at address: " << (address - 2) << " as 0x" 
+                      << std::hex << opcode << std::dec << std::endl;
+            continue;
+        } else if (mnemonic == "OUT") {
             // Format: OUT A,Rr (1011 1AAr rrrr AAAA)
             std::string port, reg;
             iss >> port >> reg;
+
+            port = trimOperand(port);
+            reg = trimOperand(reg);
+
             int portAddr = std::stoi(port, nullptr, 0);
-            int regNum = std::stoi(reg.substr(1));
-            opcode = 0xB800 | ((portAddr & 0x30) << 5) | (regNum & 0x1F) | (portAddr & 0x0F);
-        }else if (mnemonic == "JMP") {
+            int regNum = parseRegister(reg);  // Use parseRegister
+            if (regNum < 0 || regNum > 31) {
+                throw std::runtime_error("Invalid register number for OUT: " + reg);
+            }
+            opcode = 0xB800 | ((portAddr & 0x30) << 5) | ((regNum & 0x1F) << 4) | (portAddr & 0x0F);
+            machineCode.push_back(opcode & 0xFF);
+            machineCode.push_back((opcode >> 8) & 0xFF);
+            address += 2;
+            std::cout << "OUT " << port << ", " << reg << " encoded at address: " << (address - 2) 
+                      << " as 0x" << std::hex << opcode << std::dec << std::endl;
+            continue;
+        }
+        else if (mnemonic == "CLR") {
+            // Format: CLR Rd (EOR Rd, Rd) -> 0x9400 | (Rd << 4) | Rd
+            std::string rd;
+            iss >> rd;
+            
+            // Trim trailing commas (if any)
+            rd = trimOperand(rd);
+            
+            int rdNum = parseRegister(rd);  // Use parseRegister
+            opcode = 0x9400 | (rdNum << 4) | rdNum;
+            machineCode.push_back(opcode & 0xFF);
+            machineCode.push_back((opcode >> 8) & 0xFF);
+            address += 2;
+            std::cout << "CLR " << rd << " encoded as 0x" 
+                      << std::hex << opcode << std::dec 
+                      << " at address: " << (address - 2) << std::endl;
+            continue;
+        } else if (mnemonic == "RET") {
+            // Format: RET (1001 0101 0000 1000)
+            opcode = 0x9508;
+            machineCode.push_back(opcode & 0xFF);
+            machineCode.push_back((opcode >> 8) & 0xFF);
+            address += 2;
+            std::cout << "RET encoded at address: " << (address - 2) 
+                      << " as 0x" << std::hex << opcode << std::dec << std::endl;
+            continue;
+        } else if (mnemonic == "JMP") {
             // Format: JMP k (1001 010k kkkk 110k kkkk kkkk kkkk kkkk)
             std::string label;
             iss >> label;
@@ -140,8 +198,7 @@ void ATmega328Compiler::secondPass() {
             machineCode.push_back((dest >> 16) & 0xFF);
             machineCode.push_back((dest >> 24) & 0xFF);
             continue;  // Skip normal opcode output
-        }
-        else if (mnemonic == "RJMP") {
+        } else if (mnemonic == "RJMP") {
             // Format: RJMP k (1100 kkkk kkkk kkkk)
             std::string label;
             iss >> label;
@@ -149,14 +206,15 @@ void ATmega328Compiler::secondPass() {
             if (it == labelMap.end()) {
                 throw std::runtime_error("Unknown label: " + label);
             }
-            
-            // Calculate relative offset (-2K to +2K words)
-            int16_t offset = it->second - address - 1;
+
+            // Calculate relative offset in words
+            int16_t offset = ((it->second - (address + 2)) / 2); // RJMP offset is relative word distance
             if (offset < -2048 || offset > 2047) {
-                throw std::runtime_error("RJMP offset out of range");
+                throw std::runtime_error("RJMP offset out of range for label: " + label);
             }
-            // Encode offset in instruction
+
             opcode = 0xC000 | (offset & 0x0FFF);
+            continue;
         }
         else if (mnemonic == "RCALL") {
             // Format: RCALL k (1101 kkkk kkkk kkkk)
@@ -166,8 +224,15 @@ void ATmega328Compiler::secondPass() {
             if (it == labelMap.end()) {
                 throw std::runtime_error("Unknown label: " + label);
             }
-            int16_t offset = (it->second - address - 1) & 0x0FFF;
-            opcode = 0xD000 | offset;
+
+            // Calculate relative offset in words
+            int16_t offset = ((it->second - (address + 2)) / 2); // RCALL offset is relative word distance
+            if (offset < -2048 || offset > 2047) {
+                throw std::runtime_error("RCALL offset out of range for label: " + label);
+            }
+
+            opcode = 0xD000 | (offset & 0x0FFF);
+            continue;
         }
         else if (mnemonic == "CALL") {
             // Format: CALL k (1001 010k kkkk 111k kkkk kkkk kkkk kkkk)
@@ -189,11 +254,20 @@ void ATmega328Compiler::secondPass() {
             // Format: ADD Rd,Rr (0000 11rd dddd rrrr)
             std::string rd, rr;
             iss >> rd >> rr;
-            int rdNum = std::stoi(rd.substr(1));
-            int rrNum = std::stoi(rr.substr(1));
-            opcode = 0x0C00 | (rdNum << 4) | (rrNum & 0x0F);
-        }
-        else if (mnemonic == "SUB") {
+
+            rr = trimOperand(rr);
+            rd = trimOperand(rd);
+
+            int rdNum = parseRegister(rd);  // Use parseRegister
+            int rrNum = parseRegister(rr);  // Use parseRegister
+            opcode = 0x0C00 | (rdNum << 4) | rrNum;
+            machineCode.push_back(opcode & 0xFF);
+            machineCode.push_back((opcode >> 8) & 0xFF);
+            address += 2;
+            std::cout << "ADD " << rd << ", " << rr << " encoded at address: " << (address - 2) 
+                    << " as 0x" << std::hex << opcode << std::dec << std::endl;
+            continue;
+        } else if (mnemonic == "SUB") {
             // Format: SUB Rd,Rr (0001 10rd dddd rrrr)
             std::string rd, rr;
             iss >> rd >> rr;
@@ -212,14 +286,19 @@ void ATmega328Compiler::secondPass() {
         else if (mnemonic == "RET") {
             // Format: RET (1001 0101 0000 1000)
             opcode = 0x9508;
-        }
-        else if (mnemonic == "CP") {
+            machineCode.push_back(opcode & 0xFF);
+            machineCode.push_back((opcode >> 8) & 0xFF);
+            address += 2;
+            std::cout << "RET encoded at address: " << (address - 2) 
+                      << " as 0x" << std::hex << opcode << std::dec << std::endl;
+        } else if (mnemonic == "CP") {
             // Format: CP Rd,Rr (0001 01rd dddd rrrr)
             std::string rd, rr;
             iss >> rd >> rr;
             int rdNum = std::stoi(rd.substr(1));
             int rrNum = std::stoi(rr.substr(1));
             opcode = 0x1400 | (rdNum << 4) | (rrNum & 0x0F);
+            continue;
         }
         else if (mnemonic == "BRNE") {
             // Format: BRNE k (1111 01kk kkkk k001)
@@ -231,6 +310,7 @@ void ATmega328Compiler::secondPass() {
             }
             int8_t offset = (it->second - address - 1) & 0x7F;
             opcode = 0xF401 | (offset << 3);
+            continue;
         }
         else if (mnemonic == "BRGE") {
             // Format: BRGE k (1111 01kk kkkk k100)
@@ -242,6 +322,7 @@ void ATmega328Compiler::secondPass() {
             }
             int8_t offset = (it->second - address - 1) & 0x7F;
             opcode = 0xF404 | (offset << 3);
+            continue;
         }
         else if (mnemonic == "BRLT") {
             // Format: BRLT k (1111 00kk kkkk k100)
@@ -253,12 +334,14 @@ void ATmega328Compiler::secondPass() {
             }
             int8_t offset = (it->second - address - 1) & 0x7F;
             opcode = 0xF400 | (offset << 3);
+            continue;
         } else if (mnemonic == "DEC") {
             // Format: DEC Rd (1001 010d dddd 1010)
             std::string reg;
             iss >> reg;
             int regNum = std::stoi(reg.substr(1));
             opcode = 0x940A | (regNum << 4);
+            continue;
         } else {
             auto it = opcodeMap.find(mnemonic);
             if (it == opcodeMap.end()) {
@@ -271,6 +354,38 @@ void ATmega328Compiler::secondPass() {
         machineCode.push_back((opcode >> 8) & 0xFF);
         address += 2;
     }
+}
+
+std::string ATmega328Compiler::trimOperand(const std::string& operand) {
+    size_t end = operand.find_last_not_of(", \t\n\r");
+    if (end == std::string::npos) {
+        return "";
+    }
+    return operand.substr(0, end + 1);
+}
+
+int ATmega328Compiler::parseRegister(const std::string& reg) {
+    if (reg.empty() || (reg[0] != 'R' && reg[0] != 'r')) {
+        throw std::runtime_error("Invalid register format: " + reg);
+    }
+    
+    // Extract the register number substring (supports R0-R31)
+    std::string regNumStr = reg.substr(1);
+    
+    // Ensure that the remaining characters are digits
+    for (char c : regNumStr) {
+        if (!isdigit(c)) {
+            throw std::runtime_error("Non-digit character in register: " + reg);
+        }
+    }
+    
+    int regNum = std::stoi(regNumStr);
+    
+    if (regNum < 0 || regNum > 31) {
+        throw std::runtime_error("Register number out of range (R0-R31): " + reg);
+    }
+    
+    return regNum;
 }
 
 std::string ATmega328Compiler::toHex(uint8_t byte) {
