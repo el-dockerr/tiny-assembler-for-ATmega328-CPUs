@@ -8,6 +8,8 @@ ATmega328Compiler
 *.hex
 *.elf
 *.map
+*.hex
 *.o
 CTestTestfile.cmake
 Makefile
+/build
