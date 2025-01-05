@@ -431,12 +431,7 @@ void ATmega328Compiler::writeOutput() {
     if(compileType == "hex") {
         writeHexOutput();
     } else if (compileType == "bin") {
-        std::ofstream file(outputFileName, std::ios::binary);
-        if (!file.is_open()) {
-            throw std::runtime_error("Failed to open output file: " + outputFileName);
-        }
-        file.write(reinterpret_cast<const char*>(machineCode.data()), machineCode.size());
-        file.close();
+        writeBinOutput();
     } else {
         throw std::runtime_error("Unknown output format: " + compileType);
     }
@@ -481,10 +476,25 @@ void ATmega328Compiler::writeHexOutput() {
 }
 
 void ATmega328Compiler::writeBinOutput() {
-    std::ofstream file(outputFileName, std::ios::binary);
-    if (!file.is_open()) {
-        throw std::runtime_error("Failed to open output file: " + outputFileName);
+    // Open the file in binary mode
+    std::ofstream binFile(outputFileName, std::ios::binary);
+    if (!binFile.is_open()) {
+        throw std::runtime_error("Failed to open bin output file: " + outputFileName);
     }
-    file.write(reinterpret_cast<const char*>(machineCode.data()), machineCode.size());
-    file.close();
+
+    // Optional: Pad the machineCode to match the flash size (e.g., 32KB for ATmega328)
+    const size_t flashSize = 32768; // 32KB
+    if (machineCode.size() < flashSize) {
+        machineCode.resize(flashSize, 0xFF); // Typically, erased flash is set to 0xFF
+    }
+
+    // Write the machineCode data directly
+    binFile.write(reinterpret_cast<const char*>(machineCode.data()), machineCode.size());
+
+    // Check for write errors
+    if (!binFile) {
+        throw std::runtime_error("Error occurred while writing to bin file: " + outputFileName);
+    }
+
+    binFile.close();
 }
