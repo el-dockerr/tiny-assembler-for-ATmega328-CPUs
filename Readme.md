@@ -63,7 +63,7 @@ NOP
 
 Compilation Command:
 ```
-./compiler input.asm output.bin
+./compiler bin input.asm output.bin
 ```
 
 ## Examples
@@ -83,26 +83,15 @@ This will create a loop that continually adds R16 to R17.
 Save the following code in a file named blink.asm:
 
 ```
-; Define the LED pin and delay
-LDI R16, 0x20       ; Set R16 to 0x20 (Pin 5, PORTB)
-OUT 0x24, R16       ; Set DDRB to configure Pin 5 as output
+START:
+    LDI R16, 0x20       ; Set bit 5 (0b00100000)
+    OUT 0x24, R16       ; DDRB - configure Pin 5 as output
 
 LOOP:
-    OUT 0x25, R16   ; Turn LED on (PORTB)
-    CALL DELAY      ; Call delay subroutine
-    OUT 0x25, R0    ; Turn LED off (PORTB)
-    CALL DELAY      ; Call delay subroutine
-    JMP LOOP        ; Repeat the loop
-
-DELAY:
-    LDI R18, 0xFF   ; Outer loop counter
-    LDI R19, 0xFF   ; Inner loop counter
-DELAY_LOOP:
-    DEC R19         ; Decrement inner loop counter
-    BRNE DELAY_LOOP ; Branch if not zero
-    DEC R18         ; Decrement outer loop counter
-    BRNE DELAY_LOOP ; Branch if not zero
-    RET             ; Return from subroutine
+    OUT 0x25, R16       ; PORTB - LED ON
+    CLR R17             ; Clear R17
+    OUT 0x25, R17       ; PORTB - LED OFF
+    RJMP LOOP           ; Jump back to LOOP
 ```
 
 ***Steps to Assemble and Run the Code***
@@ -110,7 +99,7 @@ DELAY_LOOP:
 Compile the Assembly Code: Use the compiler you've written to convert blink.asm into a binary file.
 
 ```
-./compiler blink.asm blink.bin
+./compiler hex blink.asm blink.hex
 ```
 
 Upload to Arduino:
@@ -120,7 +109,28 @@ Upload to Arduino:
 * Use the following command to upload the binary file:
 
 ```
-avrdude -c arduino -p m328p -P /dev/ttyUSB0 -b 115200 -U flash:w:blink.bin
+avrdude -c arduino -p m328p -P /dev/ttyUSB0 -b 115200 -U flash:w:blink.hex
+
+>> avrdude: AVR device initialized and ready to accept instructions
+>> avrdude: device signature = 0x1e950f (probably m328p)
+>> avrdude: Note: flash memory has been specified, an erase cycle will be performed.
+>>          To disable this feature, specify the -D option.
+>> avrdude: erasing chip
+>> avrdude: reading input file blink.hex for flash
+>>          with 22 bytes in 1 section within [0, 0x15]
+>>          using 1 page and 106 pad bytes
+>> avrdude: writing 22 bytes flash ...
+>> 
+>> Writing | ################################################## | 100% 0.04 s
+>> 
+>> avrdude: 22 bytes of flash written
+>> avrdude: verifying flash memory against blink.hex
+>> 
+>> Reading | ################################################## | 100% 0.02 s
+>> 
+>> avrdude: 22 bytes of flash verified
+>> 
+>> avrdude done.  Thank you.
 ```
 ***Info:** *Replace /dev/ttyUSB0 with the correct port on your system.*
 
@@ -160,14 +170,9 @@ Compile the Program:
 g++ -o atmega328_compiler atmega328_compiler.cpp
 ```
 
-Run the Tests: Use the --test flag to run the unit tests:
-```
-./atmega328_compiler --test
-```
-
 Regular Compilation: To compile an assembly file to machine code, use:
 
 ```
-./atmega328_compiler <input.asm> <output.bin>
+./atmega328_compiler <hex/bin> <input.asm> <output.bin>
 ```
 
