@@ -12,4 +12,6 @@ START:
     OUT 0x25, R16       ; PORTB - LED ON
     CLR R17             ; Clear R17
     OUT 0x25, R17       ; PORTB - LED OFF
-    RET                 ; Return (should halt)
+    RET                 ; Return
+
+; Return causes that the Program restarts - so we have a blinking LED in this case
