@@ -2,8 +2,6 @@
 ### ATmega328 CPU用小型アセンブラ 
 ### *The tiny assembler for ATmega328 CPUs*
 
-私は英語を話さない日本人の仲間のためにものを作ろうとしているので、後で納得のいく翻訳を提供するよう努力するので、我慢してほしい。
-
 ## You've been warned
 This is work-in-progress. I expect that it will not work as expected yet so be careful. I will do some more code and other important stuff here.
 
