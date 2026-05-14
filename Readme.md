@@ -1,5 +1,5 @@
 # ピコ (pico)
-### ATmega328 CPU用小型アセンブラ 
+### ATmega328 CPU
 ### *The tiny assembler for ATmega328 CPUs*
 
 ## You've been warned
@@ -14,8 +14,6 @@ This is work-in-progress. I expect that it will not work as expected yet so be c
 
 
 ## Why Program Arduino Boards Directly in Assembly?
-*By El Dockerr*
-
 When it comes to programming Arduino boards, most developers default to high-level languages like C or Python. They’re familiar, convenient, and come with extensive libraries that simplify even the most complex tasks. But there’s another side to programming these boards—a raw, untamed frontier for those who seek to master their craft: assembly language.
 
 ## The Bare-Metal Appeal
